@@ -1,0 +1,47 @@
+{
+    "namespace": "NativeCodePlugin",
+    "bridge_functions": [
+        {
+            "name": "NativeCode.Execute",
+            "android": "com.test.plugin.TestFunctions.Execute",
+            "ios": "TestFunctions.Execute",
+            "description": "Execute native code"
+        },
+        {
+            "name": "NativeCode.GetData",
+            "android": "com.test.plugin.TestFunctions.GetData",
+            "ios": "TestFunctions.GetData",
+            "description": "Get native data"
+        }
+    ],
+    "android": {
+        "permissions": [
+            "android.permission.CAMERA",
+            "android.permission.RECORD_AUDIO"
+        ],
+        "dependencies": {
+            "implementation": [
+                "com.google.mlkit:barcode-scanning:17.2.0",
+                "androidx.camera:camera-core:1.3.0"
+            ]
+        }
+    },
+    "ios": {
+        "info_plist": {
+            "NSCameraUsageDescription": "This plugin needs camera access",
+            "NSMicrophoneUsageDescription": "This plugin needs microphone access"
+        },
+        "dependencies": {
+            "swift_packages": [
+                {
+                    "url": "https://github.com/example/package",
+                    "version": "1.0.0"
+                }
+            ]
+        }
+    },
+    "events": [
+        "Test\\NativeCodePlugin\\Events\\NativeDataReceived",
+        "Test\\NativeCodePlugin\\Events\\NativeProcessCompleted"
+    ]
+}

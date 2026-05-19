@@ -1,0 +1,22 @@
+{
+    "name": "test/native-code-plugin",
+    "description": "A plugin with native Kotlin and Swift code",
+    "type": "nativephp-plugin",
+    "version": "1.0.0",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Test\\NativeCodePlugin\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Test\\NativeCodePlugin\\NativeCodePluginServiceProvider"
+            ]
+        },
+        "nativephp": {
+            "manifest": "nativephp.json"
+        }
+    }
+}

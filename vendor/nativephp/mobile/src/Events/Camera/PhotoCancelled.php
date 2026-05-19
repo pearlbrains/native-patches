@@ -1,0 +1,22 @@
+<?php
+
+namespace Native\Mobile\Events\Camera;
+
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+
+/**
+ * Photo capture cancelled event
+ *
+ * This event is dispatched from native code (Kotlin/Swift) via JavaScript injection,
+ * directly triggering Livewire listeners with #[On('native:Native\Mobile\Events\Camera\PhotoCancelled')]
+ */
+class PhotoCancelled
+{
+    use Dispatchable, SerializesModels;
+
+    /**
+     * Create a new event instance.
+     */
+    public function __construct(public bool $cancelled = true, public ?string $id = null) {}
+}

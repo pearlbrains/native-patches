@@ -1,0 +1,8 @@
+import Foundation
+
+// AUTO-GENERATED FILE - DO NOT EDIT
+// No NativePHP plugins installed
+
+func registerPluginBridgeFunctions() {
+    // No plugins to register
+}

@@ -1,0 +1,34 @@
+{
+    "namespace": "ValidPlugin",
+    "bridge_functions": [
+        {
+            "name": "ValidPlugin.Execute",
+            "android": "com.test.validplugin.ValidPluginFunctions.Execute",
+            "ios": "ValidPluginFunctions.Execute",
+            "description": "Test function that executes something"
+        },
+        {
+            "name": "ValidPlugin.GetStatus",
+            "android": "com.test.validplugin.ValidPluginFunctions.GetStatus",
+            "ios": "ValidPluginFunctions.GetStatus",
+            "description": "Get current status"
+        }
+    ],
+    "android": {
+        "min_version": 24,
+        "permissions": ["android.permission.VIBRATE"],
+        "dependencies": {
+            "implementation": ["com.example:test:1.0.0"]
+        }
+    },
+    "ios": {
+        "min_version": "14.0",
+        "info_plist": {
+            "NSCameraUsageDescription": "Test camera usage"
+        },
+        "dependencies": {
+            "swift_packages": []
+        }
+    },
+    "events": ["Test\\ValidPlugin\\Events\\TestEvent"]
+}

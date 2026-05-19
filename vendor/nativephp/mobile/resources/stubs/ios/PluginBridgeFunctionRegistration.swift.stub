@@ -1,0 +1,14 @@
+import Foundation
+
+// AUTO-GENERATED FILE - DO NOT EDIT
+// Generated from installed NativePHP plugins
+
+func registerPluginBridgeFunctions() {
+    let registry = BridgeFunctionRegistry.shared
+
+    // Initialize plugins
+{{ INIT_FUNCTIONS }}
+
+    // Register bridge functions
+{{ REGISTRATIONS }}
+}

@@ -1,0 +1,17 @@
+{
+    "name": "test/no-manifest-plugin",
+    "description": "A plugin without a nativephp.json manifest",
+    "type": "nativephp-plugin",
+    "version": "1.0.0",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Test\\NoManifestPlugin\\": "src/"
+        }
+    },
+    "extra": {
+        "nativephp": {
+            "manifest": "nativephp.json"
+        }
+    }
+}

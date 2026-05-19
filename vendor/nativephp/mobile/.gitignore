@@ -1,0 +1,59 @@
+.idea
+.DS_Store
+/vendor
+/resources/xcode/Libraries
+
+!/resources/xcode/Include/Bridge
+!/resources/xcode/Include/module.modulemap
+
+# Android Studio project inside resources/androidstudio
+resources/androidstudio/*.iml
+
+# Gradle & build outputs
+resources/androidstudio/.gradle/
+resources/androidstudio/build/
+resources/androidstudio/**/build/
+resources/androidstudio/.cxx/
+resources/androidstudio/**/.cxx/
+resources/androidstudio/**/.externalNativeBuild/
+resources/androidstudio/**/obj/
+
+
+# APKs and binary outputs
+resources/androidstudio/**/*.apk
+resources/androidstudio/**/*.ap_
+resources/androidstudio/**/*.dex
+resources/androidstudio/**/*.class
+resources/androidstudio/**/*.jar
+!resources/androidstudio/gradle/wrapper/gradle-wrapper.jar
+resources/androidstudio/**/*.so
+
+# OS junk
+resources/androidstudio/.DS_Store
+resources/androidstudio/Thumbs.db
+
+# Firebase
+resources/androidstudio/google-services.json
+
+# Signing keys (do NOT commit!)
+resources/androidstudio/**/*.jks
+resources/androidstudio/**/*.keystore
+
+# Lint, cache, profiling
+resources/androidstudio/lint/
+resources/androidstudio/lint-report/
+resources/androidstudio/captures/
+resources/androidstudio/app/google-services.json
+resources/androidstudio/app/.cxx/Debug/6b686p5q/arm64-v8a/configure_fingerprint.bin
+resources/androidstudio/.gradle/file-system.probe
+resources/androidstudio/.gradle/buildOutputCleanup/buildOutputCleanup.lock
+CHANGELOG.md
+claude.md
+.phpunit.cache
+test-keystore.jks
+.secrets
+.phpunit.cache/test-results
+.github/workflows/test-package-local.yml
+
+/composer.lock
+NativePHP-Mobile-v3.1.pptx
