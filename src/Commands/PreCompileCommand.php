@@ -14,6 +14,7 @@ class PreCompileCommand extends NativePluginHookCommand
     {
         if ($this->isAndroid()) {
             $this->patchAndroidBackButton();
+            $this->patchAudioPlugin();
         }
 
         if ($this->isIos()) {
@@ -126,11 +127,92 @@ SWIFT;
         $this->applyPatch($path, $original, $patched, 'iOS back-button');
     }
 
-    private function applyPatch(string $path, string $original, string $patched, string $label): void
+    /**
+     * Fix theunwindfront/nativephp-audio's AudioFunctions.kt so that JSONArray/JSONObject
+     * parameters from BridgeRouter are correctly converted instead of failing the unsafe cast.
+     *
+     * Without this, Audio.setPlaylist always returns {success: false} and nothing plays.
+     */
+    private function patchAudioPlugin(): void
+    {
+        $path = $this->buildPath()
+            .'/app/src/main/java/com/theunwindfront/audio/AudioFunctions.kt';
+
+        if (! file_exists($path)) {
+            $this->warn('Android: AudioFunctions.kt not found — skipping audio plugin patch.');
+
+            return;
+        }
+
+        $helpers = <<<'KOTLIN'
+        private const val EVENT_PREFIX = "Theunwindfront\\Audio\\Events\\"
+
+        @Suppress("UNCHECKED_CAST")
+        private fun jsonObjectToMap(obj: JSONObject): Map<String, Any> {
+            val map = mutableMapOf<String, Any>()
+            for (key in obj.keys()) {
+                map[key] = obj.get(key)
+            }
+            return map
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        private fun jsonArrayToList(arr: JSONArray): List<Map<String, Any>> {
+            val list = mutableListOf<Map<String, Any>>()
+            for (i in 0 until arr.length()) {
+                val item = arr.get(i)
+                if (item is JSONObject) list.add(jsonObjectToMap(item))
+            }
+            return list
+        }
+
+        private fun sendEvent(name: String, payload: Map<String, Any>) {
+KOTLIN;
+
+        $this->applyPatch(
+            $path,
+            '        private const val EVENT_PREFIX = "Theunwindfront\\\\Audio\\\\Events\\\\"'."\n\n        private fun sendEvent(name: String, payload: Map<String, Any>) {",
+            $helpers,
+            'AudioPlugin helpers',
+            'private fun jsonArrayToList'
+        );
+
+        $this->applyPatch(
+            $path,
+            '            val items = parameters["items"] as? List<Map<String, Any>> ?: return mapOf("success" to false)',
+            <<<'KOTLIN'
+            val raw = parameters["items"]
+            val items: List<Map<String, Any>> = when (raw) {
+                is JSONArray -> jsonArrayToList(raw)
+                is List<*> -> @Suppress("UNCHECKED_CAST") (raw as? List<Map<String, Any>>) ?: return mapOf("success" to false)
+                else -> return mapOf("success" to false)
+            }
+KOTLIN,
+            'AudioPlugin SetPlaylist',
+            'is JSONArray -> jsonArrayToList(raw)'
+        );
+
+        $this->applyPatch(
+            $path,
+            '            val track = parameters["track"] as? Map<String, Any> ?: return mapOf("success" to false)',
+            <<<'KOTLIN'
+            val raw = parameters["track"]
+            val track: Map<String, Any> = when (raw) {
+                is JSONObject -> jsonObjectToMap(raw)
+                is Map<*, *> -> @Suppress("UNCHECKED_CAST") (raw as? Map<String, Any>) ?: return mapOf("success" to false)
+                else -> return mapOf("success" to false)
+            }
+KOTLIN,
+            'AudioPlugin AppendTrack',
+            'is JSONObject -> jsonObjectToMap(raw)'
+        );
+    }
+
+    private function applyPatch(string $path, string $original, string $patched, string $label, string $guard = 'handleNativeBack'): void
     {
         $contents = file_get_contents($path);
 
-        if (str_contains($contents, 'handleNativeBack')) {
+        if (str_contains($contents, $guard)) {
             $this->info("{$label} patch already applied.");
 
             return;
