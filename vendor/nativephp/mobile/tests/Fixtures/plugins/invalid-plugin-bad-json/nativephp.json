@@ -1,9 +1,0 @@
-{
-    "namespace": "BadJsonPlugin",
-    "bridge_functions": [
-        {
-            "name": "BadJson.Test"
-            "android": "missing comma makes this invalid JSON"
-        }
-    ]
-}
