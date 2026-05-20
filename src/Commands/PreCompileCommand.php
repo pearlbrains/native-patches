@@ -293,6 +293,49 @@ KOTLIN,
             'AudioPlugin AppendTrack',
             'is JSONObject -> jsonObjectToMap(raw)'
         );
+
+        // Returning false from setOnErrorListener causes Android to fire onCompletion,
+        // which then calls nextTrackInternal again — creating an infinite error loop when
+        // a track fails (e.g. error -38 at end of playlist). Return true to mark as handled.
+        $this->applyPatch(
+            $path,
+            <<<'KOTLIN'
+                setOnErrorListener { _, what, extra ->
+                    sendEvent("PlaybackFailed", mapOf("track" to trackPayload(), "error" to "what: $what extra: $extra"))
+                    false
+                }
+KOTLIN,
+            <<<'KOTLIN'
+                setOnErrorListener { _, what, extra ->
+                    sendEvent("PlaybackFailed", mapOf("track" to trackPayload(), "error" to "what: $what extra: $extra"))
+                    true  // prevent onCompletion from firing after an error
+                }
+KOTLIN,
+            'AudioPlugin ErrorListener',
+            'prevent onCompletion from firing after an error'
+        );
+
+        // Guard statePayload() MediaPlayer property reads — calling isPlaying/currentPosition/duration
+        // on a MediaPlayer in error state re-triggers the error callback, creating a feedback loop.
+        $this->applyPatch(
+            $path,
+            <<<'KOTLIN'
+        private fun statePayload(): Map<String, Any> = mapOf(
+            "track" to trackPayload(),
+            "position" to (mediaPlayer?.currentPosition ?: 0) / 1000.0,
+            "duration" to (mediaPlayer?.duration ?: 0) / 1000.0,
+            "isPlaying" to (mediaPlayer?.isPlaying ?: false),
+KOTLIN,
+            <<<'KOTLIN'
+        private fun statePayload(): Map<String, Any> = mapOf(
+            "track" to trackPayload(),
+            "position" to (try { mediaPlayer?.currentPosition ?: 0 } catch (e: Exception) { 0 }) / 1000.0,
+            "duration" to (try { mediaPlayer?.duration ?: 0 } catch (e: Exception) { 0 }) / 1000.0,
+            "isPlaying" to (try { mediaPlayer?.isPlaying ?: false } catch (e: Exception) { false }),
+KOTLIN,
+            'AudioPlugin statePayload guard',
+            'try { mediaPlayer?.currentPosition'
+        );
     }
 
     private function applyPatch(string $path, string $original, string $patched, string $label, string $guard = 'handleNativeBack'): void
