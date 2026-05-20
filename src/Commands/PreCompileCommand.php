@@ -12,6 +12,8 @@ class PreCompileCommand extends NativePluginHookCommand
 
     public function handle(): int
     {
+        $this->patchAudioPhpEvents();
+
         if ($this->isAndroid()) {
             $this->patchAndroidBackButton();
             $this->patchAudioPlugin();
@@ -125,6 +127,91 @@ SWIFT;
 SWIFT;
 
         $this->applyPatch($path, $original, $patched, 'iOS back-button');
+    }
+
+    /**
+     * Fix theunwindfront/nativephp-audio PHP event classes whose constructors don't match
+     * the statePayload() structure sent from Kotlin. NativePHP dispatches events via
+     * `new $event(...$payload)` using named arguments, so every payload key must have a
+     * matching constructor parameter or PHP throws "Unknown named parameter $x" → HTTP 500.
+     *
+     * Kotlin's statePayload() sends: track, position, duration, isPlaying, isBuffering,
+     * playbackRate, repeatMode, shuffleMode, playlistIndex, playlistTotal.
+     */
+    private function patchAudioPhpEvents(): void
+    {
+        $eventsPath = base_path('vendor/theunwindfront/nativephp-audio/src/Events');
+
+        if (! is_dir($eventsPath)) {
+            $this->warn('Audio PHP events path not found — skipping PHP event patches.');
+
+            return;
+        }
+
+        $statePayloadConstructor = <<<'PHP'
+    public function __construct(
+        public array $track = [],
+        public float $position = 0.0,
+        public float $duration = 0.0,
+        public bool $isPlaying = false,
+        public bool $isBuffering = false,
+        public float $playbackRate = 1.0,
+        public string $repeatMode = 'none',
+        public bool $shuffleMode = false,
+        public int $playlistIndex = 0,
+        public int $playlistTotal = 0,
+    ) {
+    }
+PHP;
+
+        // Events with empty `__construct()` that receive statePayload
+        $emptyConstructor = "    public function __construct()\n    {\n    }";
+        foreach (['PlaybackCompleted', 'PlaybackPaused', 'PlaybackStopped', 'PlaylistEnded'] as $event) {
+            $this->applyPatch("{$eventsPath}/{$event}.php", $emptyConstructor, $statePayloadConstructor, "{$event} PHP constructor", 'playlistIndex');
+        }
+
+        // RemotePlayReceived has an inline empty constructor
+        $this->applyPatch(
+            "{$eventsPath}/RemotePlayReceived.php",
+            '    public function __construct() {}',
+            $statePayloadConstructor,
+            'RemotePlayReceived PHP constructor',
+            'playlistIndex'
+        );
+
+        // Events with `public array $state` that receive statePayload
+        $stateConstructor = "    public function __construct(\n        public array \$state\n    ) {\n    }";
+        foreach ([
+            'PlaybackResumed', 'RemotePauseReceived', 'RemoteStopReceived',
+            'RemoteNextTrackReceived', 'RemotePreviousTrackReceived',
+            'AudioFocusDucked', 'AudioFocusGained', 'AudioFocusLost', 'AudioFocusLostTransient',
+        ] as $event) {
+            $this->applyPatch("{$eventsPath}/{$event}.php", $stateConstructor, $statePayloadConstructor, "{$event} PHP constructor", 'playlistIndex');
+        }
+
+        // Events with `public string $url` that receive statePayload
+        $urlConstructor = "    public function __construct(public string \$url)\n    {\n    }";
+        foreach (['PlaybackStarted', 'PlaybackLoaded', 'PlaybackBuffering', 'PlaybackReady'] as $event) {
+            $this->applyPatch("{$eventsPath}/{$event}.php", $urlConstructor, $statePayloadConstructor, "{$event} PHP constructor", 'playlistIndex');
+        }
+
+        // PlaybackProgressUpdated: had only position+duration, but statePayload has more keys
+        $this->applyPatch(
+            "{$eventsPath}/PlaybackProgressUpdated.php",
+            "    public function __construct(\n        public float \$position,\n        public float \$duration\n    ) {\n    }",
+            $statePayloadConstructor,
+            'PlaybackProgressUpdated PHP constructor',
+            'playlistIndex'
+        );
+
+        // PlaybackFailed: payload uses `track` (array) + `error` (string), not `url`
+        $this->applyPatch(
+            "{$eventsPath}/PlaybackFailed.php",
+            "    public function __construct(public string \$url, public string \$error)\n    {\n    }",
+            "    public function __construct(\n        public array \$track = [],\n        public string \$error = '',\n    ) {\n    }",
+            'PlaybackFailed PHP constructor',
+            'array $track'
+        );
     }
 
     /**
