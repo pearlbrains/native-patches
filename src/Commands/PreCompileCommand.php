@@ -16,6 +16,7 @@ class PreCompileCommand extends NativePluginHookCommand
 
         if ($this->isAndroid()) {
             $this->patchAndroidBackButton();
+            $this->patchAndroidManifest();
             $this->patchAudioPlugin();
         }
 
@@ -127,6 +128,31 @@ SWIFT;
 SWIFT;
 
         $this->applyPatch($path, $original, $patched, 'iOS back-button');
+    }
+
+    /**
+     * Android: prevent the soft keyboard from resizing the WebView layout.
+     * With adjustResize the toolbar/mini-player gets pushed upward when the
+     * keyboard opens. adjustNothing lets the keyboard overlay the content so
+     * fixed-position elements stay exactly where they are.
+     */
+    private function patchAndroidManifest(): void
+    {
+        $path = $this->buildPath().'/app/src/main/AndroidManifest.xml';
+
+        if (! file_exists($path)) {
+            $this->warn('Android: AndroidManifest.xml not found — skipping manifest patch.');
+
+            return;
+        }
+
+        $this->applyPatch(
+            $path,
+            'android:windowSoftInputMode="adjustResize"',
+            'android:windowSoftInputMode="adjustNothing"',
+            'Android manifest softInputMode',
+            'adjustNothing'
+        );
     }
 
     /**
@@ -335,6 +361,34 @@ KOTLIN,
 KOTLIN,
             'AudioPlugin statePayload guard',
             'try { mediaPlayer?.currentPosition'
+        );
+
+        // Guard currentPosition read in playTrackAtInternal — called before mediaPlayer?.release(),
+        // so accessing it while the player is in an error state can re-trigger the error listener.
+        $this->applyPatch(
+            $path,
+            '            val lastPos = (mediaPlayer?.currentPosition ?: 0) / 1000.0',
+            '            val lastPos = (try { mediaPlayer?.currentPosition ?: 0 } catch (e: Exception) { 0 }) / 1000.0',
+            'AudioPlugin playTrackAtInternal lastPos guard',
+            'try { mediaPlayer?.currentPosition ?: 0 } catch'
+        );
+
+        // Guard startProgressTimer — mediaPlayer?.isPlaying throws IllegalStateException when
+        // the player is in an error/released state, crashing the app on the main thread.
+        $this->applyPatch(
+            $path,
+            <<<'KOTLIN'
+                    if (mediaPlayer?.isPlaying == true) {
+                        sendEvent("PlaybackProgressUpdated", statePayload())
+                    }
+KOTLIN,
+            <<<'KOTLIN'
+                    if (try { mediaPlayer?.isPlaying == true } catch (e: Exception) { false }) {
+                        sendEvent("PlaybackProgressUpdated", statePayload())
+                    }
+KOTLIN,
+            'AudioPlugin startProgressTimer guard',
+            'try { mediaPlayer?.isPlaying == true'
         );
     }
 

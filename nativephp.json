@@ -1,6 +1,6 @@
 {
     "namespace": "NativePatches",
     "hooks": {
-        "pre_compile": "nativephp:native-patches:pre-compile"
+        "post_compile": "nativephp:native-patches:pre-compile"
     }
 }
